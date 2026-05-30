@@ -23,8 +23,16 @@ export default function App() {
       const total = Number(count)
       const list = []
       for (let i = 0; i < total; i++) {
-        const [description, voteCount, creator] = await contractInstance.getProposalDetails(i)
-        list.push({ id: i, description, voteCount: Number(voteCount), creator })
+        const [description, votesFor, votesAgainst, isActive, creator] =
+          await contractInstance.getProposalDetails(i)
+        list.push({
+          id: i,
+          description,
+          votesFor: Number(votesFor),
+          votesAgainst: Number(votesAgainst),
+          isActive,
+          creator,
+        })
       }
       setProposals(list)
     } catch (err) {
@@ -57,10 +65,14 @@ export default function App() {
 
       await loadProposals(_contract)
 
-      // Listeners de eventos em tempo real
       _contract.on('ProposalCreated', () => loadProposals(_contract))
       _contract.on('Voted', () => loadProposals(_contract))
+      _contract.on('ProposalCancelled', () => loadProposals(_contract))
       _contract.on('MemberAdded', async () => {
+        const updated = await _contract.members(_account)
+        setIsMember(updated)
+      })
+      _contract.on('MemberRemoved', async () => {
         const updated = await _contract.members(_account)
         setIsMember(updated)
       })
@@ -72,7 +84,6 @@ export default function App() {
     }
   }
 
-  // Detecta mudança de conta no MetaMask
   useEffect(() => {
     if (!window.ethereum) return
     const handleAccountChange = () => {
@@ -98,9 +109,37 @@ export default function App() {
       showStatus('info', 'Enviando transação...')
       const tx = await contract.addMember(address)
       await tx.wait()
-      showStatus('success', `Membro ${address.slice(0, 6)}...${address.slice(-4)} adicionado com sucesso!`)
+      showStatus('success', `Membro ${address.slice(0, 6)}...${address.slice(-4)} adicionado!`)
     } catch (err) {
       showStatus('error', err.reason || 'Erro ao adicionar membro.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRemoveMember = async (address) => {
+    try {
+      setLoading(true)
+      showStatus('info', 'Enviando transação...')
+      const tx = await contract.removeMember(address)
+      await tx.wait()
+      showStatus('success', `Membro ${address.slice(0, 6)}...${address.slice(-4)} removido.`)
+    } catch (err) {
+      showStatus('error', err.reason || 'Erro ao remover membro.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCancelProposal = async (proposalId) => {
+    try {
+      setLoading(true)
+      showStatus('info', 'Enviando transação...')
+      const tx = await contract.cancelProposal(proposalId)
+      await tx.wait()
+      showStatus('success', `Proposta #${proposalId} cancelada.`)
+    } catch (err) {
+      showStatus('error', err.reason || 'Erro ao cancelar proposta.')
     } finally {
       setLoading(false)
     }
@@ -120,13 +159,13 @@ export default function App() {
     }
   }
 
-  const handleVote = async (proposalId) => {
+  const handleVote = async (proposalId, support) => {
     try {
       setLoading(true)
       showStatus('info', 'Registrando voto...')
-      const tx = await contract.vote(proposalId)
+      const tx = await contract.vote(proposalId, support)
       await tx.wait()
-      showStatus('success', `Voto registrado na proposta #${proposalId}!`)
+      showStatus('success', `Voto ${support ? 'a favor' : 'contra'} registrado na proposta #${proposalId}!`)
     } catch (err) {
       showStatus('error', err.reason || 'Erro ao votar.')
     } finally {
@@ -173,7 +212,12 @@ export default function App() {
         ) : (
           <>
             {isAdmin && (
-              <AdminPanel onAddMember={handleAddMember} loading={loading} />
+              <AdminPanel
+                onAddMember={handleAddMember}
+                onRemoveMember={handleRemoveMember}
+                onCancelProposal={handleCancelProposal}
+                loading={loading}
+              />
             )}
 
             {isMember && (
