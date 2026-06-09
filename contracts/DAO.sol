@@ -46,6 +46,7 @@ contract DAO {
 
     function removeMember(address _member) external onlyAdmin {
         require(_member != address(0), "DAO: endereco invalido");
+        require(_member != admin, "DAO: admin nao pode ser removido como membro");
         require(members[_member], "DAO: endereco nao e membro");
         members[_member] = false;
         emit MemberRemoved(_member);
