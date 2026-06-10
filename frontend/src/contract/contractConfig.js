@@ -5,7 +5,7 @@
 //   2. CONTRACT_ABI: o JSON copiado em Compilation Details > ABI
 // =============================================================
 
-export const CONTRACT_ADDRESS = "0x5efc0B339C2D8448473f736e1B8933BdCbEE93F8";
+export const CONTRACT_ADDRESS = "0x740b839e1cCeFC2dBe6E26687C956A977618984B";
 
 export const CONTRACT_ABI = [
   {
